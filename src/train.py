@@ -24,7 +24,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 
-from .data import NEUCLS, stratified_train_val_split
+from .data import CLASS_NAMES, ClassAwareDataset, NEUCLS, stratified_train_val_split
 from .model import build_model, build_transform, extract_features, trainable_parameters
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -72,7 +72,15 @@ def evaluate(model, loader, device) -> tuple[float, float, list]:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--augment", choices=["none", "flip", "flip_rotate"], default="none")
+    parser.add_argument(
+        "--augment",
+        choices=["none", "flip", "flip_rotate", "flip_rotate_mild", "class_aware"],
+        default="none",
+        help=(
+            "class_aware applies flip+rotate to crazing/patches/pitted_surface/rolled-in_scale "
+            "and flip-only to scratches+inclusion (see findings.md section 3)."
+        ),
+    )
     parser.add_argument("--epochs", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -84,10 +92,27 @@ def main():
     set_seed(args.seed)
     device = torch.device("cpu")
 
-    train_tf = build_transform(train=True, augment=args.augment)
     eval_tf = build_transform(train=False)
 
-    train_full = NEUCLS(DATA_DIR / "train.parquet", transform=train_tf)
+    if args.augment == "class_aware":
+        # `inclusion` (1) and `scratches` (5) carry orientation as class signal,
+        # so they only get horizontal flip. The other four classes get the full
+        # flip + ±15° rotation that hurt them less in the geometric ablation.
+        no_rotation_classes = (
+            CLASS_NAMES.index("inclusion"),
+            CLASS_NAMES.index("scratches"),
+        )
+        train_full_base = NEUCLS(DATA_DIR / "train.parquet", transform=None)
+        train_full = ClassAwareDataset(
+            train_full_base,
+            transform_default=build_transform(train=True, augment="flip_rotate"),
+            transform_no_rotation=build_transform(train=True, augment="flip"),
+            no_rotation_classes=no_rotation_classes,
+        )
+    else:
+        train_tf = build_transform(train=True, augment=args.augment)
+        train_full = NEUCLS(DATA_DIR / "train.parquet", transform=train_tf)
+
     train_full_eval = NEUCLS(DATA_DIR / "train.parquet", transform=eval_tf)
     test_set = NEUCLS(DATA_DIR / "test.parquet", transform=eval_tf)
 

@@ -1,0 +1,47 @@
+{
+  "run": "baseline",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "processor": "x86_64",
+  "torch_version": "2.5.1+cpu",
+  "torch_threads": 8,
+  "model": "ResNet18 (frozen backbone) + linear head, 6 classes",
+  "input_resolution": "3x224x224",
+  "batches": [
+    {
+      "batch_size": 1,
+      "n_iters": 30,
+      "p50_batch_ms": 47.91811100221821,
+      "p95_batch_ms": 555.4137138507938,
+      "p50_per_image_ms": 47.91811100221821,
+      "p95_per_image_ms": 555.4137138507938,
+      "throughput_fps": 20.868936172248283
+    },
+    {
+      "batch_size": 4,
+      "n_iters": 30,
+      "p50_batch_ms": 90.85226200113539,
+      "p95_batch_ms": 301.0851265033125,
+      "p50_per_image_ms": 22.713065500283847,
+      "p95_per_image_ms": 75.27128162582812,
+      "throughput_fps": 44.027522396195394
+    },
+    {
+      "batch_size": 16,
+      "n_iters": 30,
+      "p50_batch_ms": 309.1129849999561,
+      "p95_batch_ms": 424.3187357515125,
+      "p50_per_image_ms": 19.319561562497256,
+      "p95_per_image_ms": 26.519920984469532,
+      "throughput_fps": 51.76100900453041
+    },
+    {
+      "batch_size": 32,
+      "n_iters": 30,
+      "p50_batch_ms": 476.24976800216245,
+      "p95_batch_ms": 654.5008148030317,
+      "p50_per_image_ms": 14.882805250067577,
+      "p95_per_image_ms": 20.453150462594742,
+      "throughput_fps": 67.19163378123619
+    }
+  ]
+}

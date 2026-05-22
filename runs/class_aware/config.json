@@ -1,0 +1,9 @@
+{
+  "augment": "class_aware",
+  "epochs": 6,
+  "lr": 0.001,
+  "batch_size": 32,
+  "seed": 0,
+  "run_name": "class_aware",
+  "num_workers": 0
+}

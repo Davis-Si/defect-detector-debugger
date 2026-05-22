@@ -1,0 +1,11 @@
+{
+  "feasible": true,
+  "threshold": 0.7000000000000001,
+  "coverage": 0.925,
+  "defer_rate": 0.07499999999999996,
+  "auto_accuracy": 1.0,
+  "n_auto_decided": 333,
+  "auto_errors": 0,
+  "run": "baseline",
+  "test_set_size": 360
+}

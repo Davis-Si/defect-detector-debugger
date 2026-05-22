@@ -1,0 +1,7 @@
+class,support,precision,recall,f1
+crazing,60,0.9231,1.0,0.96
+inclusion,60,1.0,0.5333,0.6957
+patches,60,0.9836,1.0,0.9917
+pitted_surface,60,0.7973,0.9833,0.8806
+rolled-in_scale,60,1.0,0.9167,0.9565
+scratches,60,0.8082,0.9833,0.8872

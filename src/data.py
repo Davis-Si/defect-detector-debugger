@@ -76,6 +76,39 @@ def class_counts(labels: np.ndarray) -> dict[str, int]:
     return {CLASS_NAMES[i]: int((labels == i).sum()) for i in range(NUM_CLASSES)}
 
 
+class ClassAwareDataset(Dataset):
+    """Wrap NEUCLS so different classes receive different transforms.
+
+    Motivation (see findings.md, Section 3): on NEU-CLS, ±15° rotation
+    destroys class-discriminative information for orientation-bearing classes
+    (`scratches`, `inclusion`) — the rotated-aug run drops ~7 points of test
+    accuracy. The fix is to apply rotation only to truly orientation-invariant
+    classes and use a milder transform for the rest.
+    """
+
+    def __init__(
+        self,
+        base: NEUCLS,
+        transform_default,
+        transform_no_rotation,
+        no_rotation_classes: tuple[int, ...],
+    ):
+        self.base = base
+        self.transform_default = transform_default
+        self.transform_no_rotation = transform_no_rotation
+        self.no_rotation_classes = set(no_rotation_classes)
+        self.labels = base.labels
+
+    def __len__(self) -> int:
+        return len(self.base)
+
+    def __getitem__(self, idx: int):
+        img = self.base.get_pil(idx)
+        lab = int(self.base.labels[idx])
+        tf = self.transform_no_rotation if lab in self.no_rotation_classes else self.transform_default
+        return tf(img), lab, idx
+
+
 def stratified_train_val_split(labels: np.ndarray, val_frac: float = 0.15, seed: int = 0):
     """Return (train_idx, val_idx) with class-balanced sampling."""
     rng = np.random.default_rng(seed)

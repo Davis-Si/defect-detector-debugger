@@ -1,0 +1,9 @@
+{
+  "augment": "flip_rotate_mild",
+  "epochs": 6,
+  "lr": 0.001,
+  "batch_size": 32,
+  "seed": 0,
+  "run_name": "flip_rotate_mild",
+  "num_workers": 0
+}

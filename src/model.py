@@ -20,12 +20,14 @@ IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
 def build_transform(*, train: bool, augment: str = "none") -> T.Compose:
-    """augment ∈ {'none', 'flip', 'flip_rotate'}."""
+    """augment ∈ {'none', 'flip', 'flip_rotate', 'flip_rotate_mild'}."""
     base = [T.Resize((224, 224))]
     if train and augment != "none":
         base.append(T.RandomHorizontalFlip(p=0.5))
         if augment == "flip_rotate":
             base.append(T.RandomRotation(degrees=15))
+        elif augment == "flip_rotate_mild":
+            base.append(T.RandomRotation(degrees=5))
     base.extend([T.ToTensor(), T.Normalize(IMAGENET_MEAN, IMAGENET_STD)])
     return T.Compose(base)
 

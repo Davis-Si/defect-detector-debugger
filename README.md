@@ -10,49 +10,100 @@ help.
 
 ## Headline results
 
-| Run         | Augmentation | Test accuracy | Test loss | Notes                          |
-|-------------|--------------|---------------|-----------|--------------------------------|
-| baseline    | none         | **0.9806**    | 0.128     | Best of the three              |
-| flip        | h-flip       | 0.9722        | 0.138     | Slight regression              |
-| flip_rotate | h-flip + ±15° rotation | 0.9139 | 0.278   | Rotation breaks elongated defects |
+Five training runs, ablating different augmentation policies on a 1,440-image
+training set. All errors below are on a held-out test set of 360 images.
+
+| Run                | Augmentation policy                            | Test accuracy |
+|--------------------|------------------------------------------------|---------------|
+| **baseline**       | none                                           | **0.9806**    |
+| flip               | horizontal flip                                | 0.9722        |
+| flip_rotate        | h-flip + ±15° rotation                         | 0.9139        |
+| flip_rotate_mild   | h-flip + ±5° rotation                          | 0.9028        |
+| class_aware        | rotation only on rotation-safe classes (hypothesis-driven) | 0.8611 |
 
 ![Ablation across augmentation regimes](reports/ablation.png)
+
+**The headline finding is that every augmentation regime hurts on this dataset.**
+The baseline (no augmentation) wins by 0.9 to 12 points depending on the
+alternative. Even the hypothesis-driven `class_aware` policy — which I
+designed *after* analysing per-class failures in `flip_rotate` and which does
+recover inclusion recall as predicted (0.63 → 0.78) — fails overall, because
+the regression on rotation-safe classes (`pitted_surface` recall 0.95 → 0.63)
+swamps the gain. See [`findings.md`](findings.md) Section 3 for the full
+trace from observation → hypothesis → experiment → re-evaluation.
+
+This is a result that would not show up if you only looked at aggregate test
+accuracy on the default augmentation pipeline — and it's the kind of thing
+that quietly costs production deployments.
+
+### Production-readiness summary
+
+The baseline model isn't just accurate, it's *deployable*:
+
+| Metric                                | Value                                  |
+|---------------------------------------|----------------------------------------|
+| Test accuracy                         | 98.06%                                 |
+| **Confidence-thresholded auto-decision** | **100% accurate at T=0.70**         |
+| Auto-decided coverage at that threshold | **92.5%** (333/360 frames)           |
+| Defer-to-human rate                   | **7.5%** (27/360 frames)               |
+| **CPU latency p50 (batch=1)**         | **47.9 ms / frame  →  20.9 FPS**       |
+| CPU latency p50 (batch=32)            | 14.9 ms / frame  →  67.2 FPS           |
+| Hardware                              | 8-core CPU, no GPU                     |
+
+Coverage / accuracy curve, recommended threshold, and full latency table at
+`reports/deployment/` and `reports/benchmark/latency.md`.
+
+![Deployment policy: coverage vs auto-decision accuracy](reports/deployment/coverage_accuracy.png)
+
+### Failure-mode visuals
+
+Confusion matrix and Grad-CAM saliency on the dominant confused class pair
+(`inclusion` mistaken for `scratches`):
+
 ![Baseline confusion matrix](runs/baseline/analysis/confusion_matrix.png)
-![Baseline per-class metrics](runs/baseline/analysis/per_class.png)
+![Grad-CAM: inclusion predicted as scratches](runs/baseline/analysis/gradcam_confused_pairs/gradcam__inclusion__as__scratches.png)
+
+The Grad-CAM heatmaps show the model is *not* getting distracted by background
+artefacts — it's looking exactly at the elongated dark streaks, which on these
+samples really do resemble scratches. So the residual error is a true visual
+ambiguity, not a model attention problem. This is a deployment-relevant
+distinction: it tells the team to invest in either an inclusion-vs-streak
+auxiliary classifier or a relabelling pass on edge cases, *not* in retraining
+the main model.
+
+Calibration is reliable enough to use as the deployment signal:
+
 ![Baseline calibration](runs/baseline/analysis/calibration.png)
 ![t-SNE of baseline test features](runs/baseline/analysis/tsne.png)
-
-The headline finding is that **standard "always-on" augmentations make the model
-worse on this dataset** — not by a small margin, but by 6.7 points of accuracy
-in the rotation case. Section 3 of [`findings.md`](findings.md) traces why:
-several defect classes (scratches, rolled-in scale) are orientation-bearing
-signals, so rotation destroys class-discriminative information rather than
-adding invariance. This is the kind of result a debug-minded CV engineer should
-*expect* to find on industrial data — and the kind that aggregate metrics on
-public benchmarks routinely hide.
 
 ## What's in the repo
 
 ```
 src/
-  data.py       NEU-CLS parquet loader, stratified train/val split
-  model.py      ResNet-18 backbone (frozen) + linear head, transforms
-  train.py      Training loop with per-run config + artefact dump
-  analyze.py    The actual deliverable — see "Failure analysis toolkit" below
+  data.py        NEU-CLS parquet loader, stratified split, ClassAwareDataset
+  model.py       ResNet-18 backbone (frozen) + linear head, transforms
+  train.py       Training loop with per-run config + artefact dump
+  analyze.py     Failure-analysis toolkit (per-class, calibration, t-SNE, ...)
+  gradcam.py     Grad-CAM saliency overlays for any run
+  deployment.py  Coverage-vs-accuracy sweep + threshold recommendation
+  benchmark.py   CPU latency benchmark across batch sizes
 runs/<name>/
-  config.json, metrics.json, model.pt
-  test_predictions.csv  (label, pred, top-1 conf, top-2 conf per test image)
-  test_features.npy     (penultimate-layer features for the entire test set)
+  config.json, metrics.json, model.pt, test_predictions.csv, test_features.npy
   analysis/
     per_class.{csv,png}, confusion_matrix.png, calibration.png, tsne.png
-    confused_pairs/   one image gallery per top-confused (true, pred) pair
-    hard_examples/    high-confidence wrong + low-confidence right boards
+    confused_pairs/                 image galleries by (true, pred) pair
+    hard_examples/                  high-conf-wrong + low-conf-right boards
+    gradcam_confused_pairs/         Grad-CAM overlays for confused pairs
+    gradcam_high_conf_wrong.png     Grad-CAM on the highest-conf errors
     summary.json
 reports/
-  ablation.{csv,png}    cross-run accuracy comparison
-  summaries.json        every run's per-class breakdown in one place
-findings.md             the writeup — failure modes, root causes, fixes tried
-Makefile                make all reproduces every artefact in this repo
+  ablation.{csv,png}                cross-run accuracy comparison
+  deployment/coverage_accuracy.{csv,png}
+  deployment/recommendation.json    recommended confidence threshold + coverage
+  benchmark/latency.{json,md}       CPU inference benchmark
+  summaries.json
+findings.md                         narrative writeup of every failure mode
+Makefile                            `make all` reproduces every artefact
 requirements.txt
 ```
 
@@ -81,16 +132,27 @@ requirements.txt
 7. **Cross-run ablation table** — same metrics across all augmentation regimes,
    side by side.
 
-The toolkit operates on the artefacts emitted by `train.py`, so it works on
-*any* run without re-training. That separation is intentional: in practice you
-spend more time analysing runs than producing them.
+`src/gradcam.py` adds Grad-CAM saliency overlays so you can see *which pixels*
+the model used for any prediction. In practice this is what tells the
+annotation team whether to relabel a sample or whether the visual signal is
+genuinely ambiguous. Run with `python -m src.gradcam --run runs/baseline`.
+
+`src/deployment.py` computes the coverage-vs-accuracy curve and recommends a
+deployment threshold. Run with `python -m src.deployment --run runs/baseline`.
+
+`src/benchmark.py` measures p50 / p95 inference latency on CPU across batch
+sizes. Run with `python -m src.benchmark --run runs/baseline`.
+
+All four operate on the artefacts emitted by `train.py`, so they work on
+*any* run without re-training. That separation is intentional: in practice
+you spend more time analysing runs than producing them.
 
 ## Reproducing
 
 ```bash
 make setup     # creates .venv, installs CPU torch + deps
 make data      # downloads the parquet files (~70 MB)
-make train     # 3 runs × 6 epochs ≈ 12 min on 8-core CPU
+make train     # 5 runs × 6 epochs ≈ 25 min on 8-core CPU
 make analyze   # writes analysis/ subdirs and reports/
 ```
 
@@ -109,8 +171,8 @@ first-class concern:
 
 - *Datasets / labels* — `confused_pairs/` and `hard_examples/` galleries make
   label noise visible in seconds.
-- *Augmentations* — three runs, one ablation, written up with a hypothesis for
-  why each result fell where it did.
+- *Augmentations* — five runs, hypothesis-driven ablation including a
+  principled fix that *failed*, written up in `findings.md` Section 3.
 - *Training behaviour* — `metrics.json` keeps per-epoch loss + accuracy and
   best-val checkpointing; `findings.md` discusses what the curves imply.
 - *Targeted evaluation* — sliced confidence bins and per-class metrics force

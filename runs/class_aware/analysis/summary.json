@@ -1,0 +1,70 @@
+{
+  "run": "class_aware",
+  "test_acc": 0.8611111111111112,
+  "per_class": [
+    {
+      "class": "crazing",
+      "support": 60,
+      "precision": 0.7229,
+      "recall": 1.0,
+      "f1": 0.8392
+    },
+    {
+      "class": "inclusion",
+      "support": 60,
+      "precision": 0.8545,
+      "recall": 0.7833,
+      "f1": 0.8174
+    },
+    {
+      "class": "patches",
+      "support": 60,
+      "precision": 0.9524,
+      "recall": 1.0,
+      "f1": 0.9756
+    },
+    {
+      "class": "pitted_surface",
+      "support": 60,
+      "precision": 0.8837,
+      "recall": 0.6333,
+      "f1": 0.7379
+    },
+    {
+      "class": "rolled-in_scale",
+      "support": 60,
+      "precision": 1.0,
+      "recall": 0.75,
+      "f1": 0.8571
+    },
+    {
+      "class": "scratches",
+      "support": 60,
+      "precision": 0.8451,
+      "recall": 1.0,
+      "f1": 0.916
+    }
+  ],
+  "top_confused_pairs": [
+    {
+      "true": "rolled-in_scale",
+      "pred": "crazing",
+      "count": 14
+    },
+    {
+      "true": "pitted_surface",
+      "pred": "crazing",
+      "count": 9
+    },
+    {
+      "true": "pitted_surface",
+      "pred": "inclusion",
+      "count": 8
+    }
+  ],
+  "hard_examples_summary": {
+    "high_conf_wrong_count": 50,
+    "lowest_correct_conf": 0.3026008307933807,
+    "highest_wrong_conf": 0.7104101777076721
+  }
+}
