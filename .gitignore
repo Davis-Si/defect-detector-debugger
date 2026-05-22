@@ -4,6 +4,9 @@ __pycache__/
 *.pyo
 data/*.parquet
 data/cached_*/
+.env
+.env.*
+!.env.example
 
 # Track configs, metrics, predictions, and analysis plots — but not the heavy
 # model weights or feature dumps. This lets reviewers browse the artefacts
