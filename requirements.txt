@@ -1,0 +1,14 @@
+# Install torch + torchvision from the PyTorch CPU index:
+#   pip install --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 torchvision==0.20.1
+# Then install the rest with the default index:
+#   pip install -r requirements.txt
+torch==2.5.1
+torchvision==0.20.1
+numpy>=1.26
+pandas>=2.0
+pyarrow>=15.0
+pillow>=10.0
+scikit-learn>=1.4
+matplotlib>=3.8
+seaborn>=0.13
+tqdm>=4.66

@@ -1,0 +1,212 @@
+[
+  {
+    "run": "baseline",
+    "test_acc": 0.9805555555555555,
+    "per_class": [
+      {
+        "class": "crazing",
+        "support": 60,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "class": "inclusion",
+        "support": 60,
+        "precision": 0.9818,
+        "recall": 0.9,
+        "f1": 0.9391
+      },
+      {
+        "class": "patches",
+        "support": 60,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "class": "pitted_surface",
+        "support": 60,
+        "precision": 0.9672,
+        "recall": 0.9833,
+        "f1": 0.9752
+      },
+      {
+        "class": "rolled-in_scale",
+        "support": 60,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "class": "scratches",
+        "support": 60,
+        "precision": 0.9375,
+        "recall": 1.0,
+        "f1": 0.9677
+      }
+    ],
+    "top_confused_pairs": [
+      {
+        "true": "inclusion",
+        "pred": "scratches",
+        "count": 4
+      },
+      {
+        "true": "inclusion",
+        "pred": "pitted_surface",
+        "count": 2
+      },
+      {
+        "true": "pitted_surface",
+        "pred": "inclusion",
+        "count": 1
+      }
+    ],
+    "hard_examples_summary": {
+      "high_conf_wrong_count": 7,
+      "lowest_correct_conf": 0.3291105031967163,
+      "highest_wrong_conf": 0.6912286877632141
+    }
+  },
+  {
+    "run": "flip",
+    "test_acc": 0.9722222222222222,
+    "per_class": [
+      {
+        "class": "crazing",
+        "support": 60,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "class": "inclusion",
+        "support": 60,
+        "precision": 0.9808,
+        "recall": 0.85,
+        "f1": 0.9107
+      },
+      {
+        "class": "patches",
+        "support": 60,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "class": "pitted_surface",
+        "support": 60,
+        "precision": 0.9833,
+        "recall": 0.9833,
+        "f1": 0.9833
+      },
+      {
+        "class": "rolled-in_scale",
+        "support": 60,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      {
+        "class": "scratches",
+        "support": 60,
+        "precision": 0.8824,
+        "recall": 1.0,
+        "f1": 0.9375
+      }
+    ],
+    "top_confused_pairs": [
+      {
+        "true": "inclusion",
+        "pred": "scratches",
+        "count": 8
+      },
+      {
+        "true": "pitted_surface",
+        "pred": "inclusion",
+        "count": 1
+      },
+      {
+        "true": "inclusion",
+        "pred": "pitted_surface",
+        "count": 1
+      }
+    ],
+    "hard_examples_summary": {
+      "high_conf_wrong_count": 10,
+      "lowest_correct_conf": 0.3621744811534881,
+      "highest_wrong_conf": 0.7164280414581299
+    }
+  },
+  {
+    "run": "flip_rotate",
+    "test_acc": 0.9138888888888889,
+    "per_class": [
+      {
+        "class": "crazing",
+        "support": 60,
+        "precision": 0.8955,
+        "recall": 1.0,
+        "f1": 0.9449
+      },
+      {
+        "class": "inclusion",
+        "support": 60,
+        "precision": 0.9744,
+        "recall": 0.6333,
+        "f1": 0.7677
+      },
+      {
+        "class": "patches",
+        "support": 60,
+        "precision": 0.9836,
+        "recall": 1.0,
+        "f1": 0.9917
+      },
+      {
+        "class": "pitted_surface",
+        "support": 60,
+        "precision": 0.8636,
+        "recall": 0.95,
+        "f1": 0.9048
+      },
+      {
+        "class": "rolled-in_scale",
+        "support": 60,
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1": 0.9474
+      },
+      {
+        "class": "scratches",
+        "support": 60,
+        "precision": 0.8219,
+        "recall": 1.0,
+        "f1": 0.9023
+      }
+    ],
+    "top_confused_pairs": [
+      {
+        "true": "inclusion",
+        "pred": "scratches",
+        "count": 13
+      },
+      {
+        "true": "inclusion",
+        "pred": "pitted_surface",
+        "count": 9
+      },
+      {
+        "true": "rolled-in_scale",
+        "pred": "crazing",
+        "count": 5
+      }
+    ],
+    "hard_examples_summary": {
+      "high_conf_wrong_count": 31,
+      "lowest_correct_conf": 0.3100410997867584,
+      "highest_wrong_conf": 0.7509434819221497
+    }
+  }
+]

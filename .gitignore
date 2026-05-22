@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+data/*.parquet
+data/cached_*/
+
+# Track configs, metrics, predictions, and analysis plots — but not the heavy
+# model weights or feature dumps. This lets reviewers browse the artefacts
+# without committing ~135 MB of checkpoints.
+runs/*/model.pt
+runs/*/test_features.npy
+
+.DS_Store
+.ipynb_checkpoints/
+*.egg-info/
+.pytest_cache/

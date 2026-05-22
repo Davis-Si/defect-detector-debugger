@@ -1,0 +1,9 @@
+{
+  "augment": "none",
+  "epochs": 6,
+  "lr": 0.001,
+  "batch_size": 32,
+  "seed": 0,
+  "run_name": "baseline",
+  "num_workers": 0
+}

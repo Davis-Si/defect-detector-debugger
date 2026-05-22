@@ -1,0 +1,70 @@
+{
+  "run": "flip",
+  "test_acc": 0.9722222222222222,
+  "per_class": [
+    {
+      "class": "crazing",
+      "support": 60,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "class": "inclusion",
+      "support": 60,
+      "precision": 0.9808,
+      "recall": 0.85,
+      "f1": 0.9107
+    },
+    {
+      "class": "patches",
+      "support": 60,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "class": "pitted_surface",
+      "support": 60,
+      "precision": 0.9833,
+      "recall": 0.9833,
+      "f1": 0.9833
+    },
+    {
+      "class": "rolled-in_scale",
+      "support": 60,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "class": "scratches",
+      "support": 60,
+      "precision": 0.8824,
+      "recall": 1.0,
+      "f1": 0.9375
+    }
+  ],
+  "top_confused_pairs": [
+    {
+      "true": "inclusion",
+      "pred": "scratches",
+      "count": 8
+    },
+    {
+      "true": "pitted_surface",
+      "pred": "inclusion",
+      "count": 1
+    },
+    {
+      "true": "inclusion",
+      "pred": "pitted_surface",
+      "count": 1
+    }
+  ],
+  "hard_examples_summary": {
+    "high_conf_wrong_count": 10,
+    "lowest_correct_conf": 0.3621744811534881,
+    "highest_wrong_conf": 0.7164280414581299
+  }
+}

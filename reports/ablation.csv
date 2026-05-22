@@ -1,0 +1,4 @@
+run,augment,epochs,best_val_acc,test_acc,test_loss
+baseline,none,6,0.9907,0.9806,0.1279
+flip,flip,6,0.9861,0.9722,0.1378
+flip_rotate,flip_rotate,6,0.9722,0.9139,0.2784
