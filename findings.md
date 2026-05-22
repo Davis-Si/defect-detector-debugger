@@ -19,11 +19,11 @@ Source: `runs/baseline/analysis/per_class.csv`,
 That collapses the failure-analysis question into one question: *why is
 inclusion confused with scratches (4 cases) and pitted_surface (2 cases)?*
 
-**Implication for production:** if Cerrion shipped this model and the customer
-cared about inclusion-class recall (e.g. because inclusions correlate with
-downstream casting defects), the 98.1% headline would be dangerously
-reassuring. The right SLA is per-class — and ideally per-class with a
-confusion budget against the most operationally costly mistake.
+**Implication for production:** if a customer cared about inclusion-class
+recall (e.g. because inclusions correlate with downstream casting defects),
+the 98.1% headline would be dangerously reassuring. The right SLA is per-
+class — and ideally per-class with a confusion budget against the most
+operationally costly mistake.
 
 ## 2. The model is well-calibrated, so confidence is usable as a triage signal
 
@@ -238,9 +238,9 @@ The full curve (`reports/deployment/coverage_accuracy.png`) shows the
 trade-off the operations team controls: lowering T expands coverage but
 risks the first auto-error; raising T shrinks coverage but adds margin.
 
-For Cerrion's use case in particular, where one missed defect can mean a
-costly production stoppage, this kind of per-frame routing policy is
-exactly the surface that turns model accuracy into shipped value.
+In an inspection setting where one missed defect can mean a costly
+production stoppage, this kind of per-frame routing policy is exactly
+the surface that turns model accuracy into shipped value.
 
 ## 8. The augmentation question, settled empirically
 

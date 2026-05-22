@@ -200,20 +200,28 @@ first training run and cached under `~/.cache/torch/hub/`.
 
 ## Why this design
 
-The job posting that motivated this project asks for someone who debugs CV
-systems through "targeted evaluations rather than only looking at aggregate
-metrics" and traces problems through "datasets, labels, augmentations, and
-training behaviour". The repo is structured to make every one of those a
-first-class concern:
+A 98% test-accuracy headline is the *least* interesting thing a CV pipeline
+produces. On industrial data the questions that matter come after that
+number: which class is doing the work, where do the errors live, do the
+"obvious" fixes actually help, and is the model deployable on the hardware
+that's actually available. The repo is structured so each of those
+questions has a first-class artefact:
 
-- *Datasets / labels* — `confused_pairs/` and `hard_examples/` galleries make
-  label noise visible in seconds.
-- *Augmentations* — six runs, hypothesis-driven ablation including a
-  principled hand-picked fix and an empirically-derived auto policy, *both
-  of which failed*, written up in `findings.md` Sections 3 and 8.
-- *Training behaviour* — `metrics.json` keeps per-epoch loss + accuracy and
-  best-val checkpointing; `findings.md` discusses what the curves imply.
-- *Targeted evaluation* — sliced confidence bins and per-class metrics force
-  you to look past the aggregate number.
+- **Per-class and sliced metrics, not just aggregate.** All six baseline
+  errors land in a single class — invisible in the headline, obvious in
+  `runs/baseline/analysis/per_class.csv`.
+- **Hypothesis-driven augmentation ablation.** Six runs, including a
+  hand-picked class-aware fix and an empirically-derived auto policy,
+  *both of which lost to no-augmentation* — and that negative result is
+  why we can recommend the deployment policy with confidence.
+- **Saliency, not just predictions.** Grad-CAM tells the annotation team
+  whether a misclassification is an attention problem (fix the model) or
+  a visual-ambiguity problem (fix the labels). Different fix, different
+  team.
+- **Confidence as a deployment surface, not a curiosity.** All errors fall
+  under 0.70 confidence; the coverage-vs-accuracy sweep turns that into a
+  shippable triage policy with a recommended threshold.
+- **Wallclock, not just FLOPs.** CPU latency benchmark and a fp32-vs-INT8
+  Pareto plot make the "is this deployable?" question concrete.
 
-See [`findings.md`](findings.md) for the actual narrative.
+See [`findings.md`](findings.md) for the narrative that ties them together.
