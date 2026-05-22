@@ -1,0 +1,23 @@
+{
+  "transform": "rot_15",
+  "percentile_cutoff": 50.0,
+  "cutoff_value": 0.43846458879609906,
+  "safe_classes": [
+    "inclusion",
+    "patches",
+    "scratches"
+  ],
+  "sensitive_classes": [
+    "crazing",
+    "pitted_surface",
+    "rolled-in_scale"
+  ],
+  "per_class_drop": {
+    "crazing": 0.4778,
+    "inclusion": 0.3991,
+    "patches": 0.1048,
+    "pitted_surface": 0.5163,
+    "rolled-in_scale": 0.6028,
+    "scratches": 0.0323
+  }
+}

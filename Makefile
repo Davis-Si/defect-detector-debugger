@@ -1,6 +1,6 @@
 PYTHON := .venv/bin/python
 
-.PHONY: setup data train analyze gradcam deployment benchmark all clean
+.PHONY: setup data train train_auto analyze gradcam sensitivity deployment benchmark quantize all clean
 
 setup:
 	python3 -m venv --without-pip .venv
@@ -20,12 +20,20 @@ train:
 	$(PYTHON) -m src.train --augment flip_rotate_mild --epochs 6 --run-name flip_rotate_mild
 	$(PYTHON) -m src.train --augment class_aware      --epochs 6 --run-name class_aware
 
+train_auto: sensitivity
+	# Trains the empirically-derived policy. Depends on baseline existing
+	# (sensitivity probe loads runs/baseline/model.pt) and on policy.json.
+	$(PYTHON) -m src.train --augment auto             --epochs 6 --run-name auto_sensitivity
+
 analyze:
-	$(PYTHON) -m src.analyze --runs runs/baseline runs/flip runs/flip_rotate runs/flip_rotate_mild runs/class_aware
+	$(PYTHON) -m src.analyze --runs runs/baseline runs/flip runs/flip_rotate runs/flip_rotate_mild runs/class_aware runs/auto_sensitivity
 
 gradcam:
 	$(PYTHON) -m src.gradcam --run runs/baseline --mode all
 	$(PYTHON) -m src.gradcam --run runs/class_aware --mode all
+
+sensitivity:
+	$(PYTHON) -m src.sensitivity --run runs/baseline
 
 deployment:
 	$(PYTHON) -m src.deployment --run runs/baseline
@@ -33,7 +41,10 @@ deployment:
 benchmark:
 	$(PYTHON) -m src.benchmark --run runs/baseline
 
-all: data train analyze gradcam deployment benchmark
+quantize:
+	$(PYTHON) -m src.quantize --run runs/baseline
+
+all: data train train_auto analyze gradcam deployment benchmark quantize
 
 clean:
 	rm -rf runs/ reports/

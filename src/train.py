@@ -74,11 +74,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--augment",
-        choices=["none", "flip", "flip_rotate", "flip_rotate_mild", "class_aware"],
+        choices=["none", "flip", "flip_rotate", "flip_rotate_mild", "class_aware", "auto"],
         default="none",
         help=(
-            "class_aware applies flip+rotate to crazing/patches/pitted_surface/rolled-in_scale "
-            "and flip-only to scratches+inclusion (see findings.md section 3)."
+            "class_aware = hand-picked partition (skip rotation for inclusion+scratches). "
+            "auto       = read reports/sensitivity/policy.json; rotate only the classes "
+            "the empirical sensitivity probe found rotation-safe."
         ),
     )
     parser.add_argument("--epochs", type=int, default=8)
@@ -94,20 +95,33 @@ def main():
 
     eval_tf = build_transform(train=False)
 
-    if args.augment == "class_aware":
-        # `inclusion` (1) and `scratches` (5) carry orientation as class signal,
-        # so they only get horizontal flip. The other four classes get the full
-        # flip + ±15° rotation that hurt them less in the geometric ablation.
-        no_rotation_classes = (
-            CLASS_NAMES.index("inclusion"),
-            CLASS_NAMES.index("scratches"),
-        )
+    if args.augment in ("class_aware", "auto"):
+        if args.augment == "class_aware":
+            # Hand-picked partition: see findings.md section 3c. Rotation
+            # destroys class signal for `inclusion` and `scratches`, so those
+            # get flip-only; the rest get flip + ±15° rotation.
+            no_rotation = (
+                CLASS_NAMES.index("inclusion"),
+                CLASS_NAMES.index("scratches"),
+            )
+        else:  # auto
+            policy_path = ROOT / "reports" / "sensitivity" / "policy.json"
+            if not policy_path.exists():
+                raise FileNotFoundError(
+                    f"{policy_path} not found. Run `python -m src.sensitivity --run runs/baseline` first."
+                )
+            policy = json.loads(policy_path.read_text())
+            # The probe's "sensitive" classes are the ones we should *not* rotate.
+            no_rotation = tuple(CLASS_NAMES.index(c) for c in policy["sensitive_classes"])
+            print(f"[auto] policy from {policy_path.name}:")
+            print(f"  rotation-SAFE (will be rotated):     {policy['safe_classes']}")
+            print(f"  rotation-SENSITIVE (flip only):       {policy['sensitive_classes']}")
         train_full_base = NEUCLS(DATA_DIR / "train.parquet", transform=None)
         train_full = ClassAwareDataset(
             train_full_base,
             transform_default=build_transform(train=True, augment="flip_rotate"),
             transform_no_rotation=build_transform(train=True, augment="flip"),
-            no_rotation_classes=no_rotation_classes,
+            no_rotation_classes=no_rotation,
         )
     else:
         train_tf = build_transform(train=True, augment=args.augment)

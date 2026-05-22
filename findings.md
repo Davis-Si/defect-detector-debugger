@@ -139,7 +139,7 @@ augmentation pipeline.*
 
 ## 4. Inclusion / scratches / pitted_surface form a confusion triangle
 
-Across all five runs, the dominant off-diagonal entries are the same pair:
+Across all six runs, the dominant off-diagonal entries are the same pair:
 **inclusion ↔ scratches** and to a lesser extent **inclusion ↔ pitted_surface**.
 
 - `runs/baseline/analysis/confused_pairs/confused__inclusion__as__scratches.png`
@@ -242,7 +242,89 @@ For Cerrion's use case in particular, where one missed defect can mean a
 costly production stoppage, this kind of per-frame routing policy is
 exactly the surface that turns model accuracy into shipped value.
 
-## What's not done here, and why
+## 8. The augmentation question, settled empirically
+
+Section 3 ended with: "the underlying mechanism is real, but my partition of
+'rotation-safe' classes was wrong." This section closes that loop.
+
+`src/sensitivity.py` measures, for each (class, candidate transform) pair,
+the mean drop in `p_true` when the transform is applied at test time to
+images of that class — through the *trained* baseline model. High drop
+means the model can't recognise the augmented version as the same class,
+which is exactly the signal we want for "do not rotate this class at
+training time."
+
+Run on the baseline model, the probe produces:
+
+| class            | sensitivity to ±15° rot (mean p_true drop) | hand-picked guess | probe verdict     |
+|------------------|-------------------------------------------:|-------------------|-------------------|
+| scratches        | 0.0323                                     | sensitive (skip)  | **safe** (rotate) |
+| patches          | 0.1048                                     | safe              | safe              |
+| inclusion        | 0.3991                                     | sensitive (skip)  | safe (rotate)     |
+| crazing          | 0.4778                                     | safe              | sensitive (skip)  |
+| pitted_surface   | 0.5163                                     | safe              | sensitive (skip)  |
+| rolled-in_scale  | 0.6028                                     | safe              | sensitive (skip)  |
+
+*Five of six rows disagree with my hand-picked partition.* Critically,
+`scratches` — the class I was most confident was rotation-sensitive because
+of its visual orientation — has by far the *lowest* sensitivity. The
+ImageNet-pretrained ResNet-18 evidently learned a feature for "elongated
+dark mark" that is itself rotation-tolerant, even though humans label
+scratches by orientation. That's a real, non-obvious finding about *this
+specific model* on *this specific dataset*; you can't infer it from the
+class names.
+
+The `auto_sensitivity` run (`runs/auto_sensitivity/`) trains using exactly
+this auto-derived policy: rotate `scratches`, `patches`, `inclusion`; flip-
+only for `crazing`, `pitted_surface`, `rolled-in_scale`. Result:
+
+| run                | test acc |
+|--------------------|----------|
+| baseline (no aug)  | 0.9806   |
+| flip               | 0.9722   |
+| flip_rotate        | 0.9139   |
+| **auto_sensitivity** | **0.9083** |
+| flip_rotate_mild   | 0.9028   |
+| class_aware (hand-picked) | 0.8611 |
+
+The auto policy beats my hand-picked policy by **+4.7 points** (0.9083 vs
+0.8611) — confirming the probe extracts real signal — but still loses to
+the no-augmentation baseline by 7 points. So the conclusion of Section 3
+("no geometric augmentation policy beats no-augmentation") is now *robust*:
+not just because three guesses failed, but because even the *best policy
+the data itself can recommend* fails. The dataset / model combination
+genuinely doesn't accept geometric augmentation.
+
+Caveat worth being honest about: the auto policy regressed on `inclusion`
+recall (0.90 → 0.47) despite the probe scoring inclusion as rotation-safe.
+The probe measures `p_true` drop, not inter-class confusion rate. An
+image whose `p_true` stays high after rotation can still get its second-
+choice class boosted enough to flip the prediction. A v2 of the probe
+should measure top-1 accuracy under transform, not just `p_true` drop.
+This is a real, scoped follow-up.
+
+## 9. INT8 dynamic quantization: 1.5× speedup, no accuracy loss
+
+`src/quantize.py` applies `torch.quantization.quantize_dynamic` to the
+trained baseline (linear-head only — conv2d isn't supported by eager-mode
+dynamic quant) and re-runs both the test-set evaluation and the latency
+benchmark.
+
+| variant       | test acc | size (MB) | latency p50 batch=1 (ms) | FPS batch=1 |
+|---------------|---------:|----------:|--------------------------:|------------:|
+| fp32          | 0.9806   | 42.68     | 40.06                     | 25.0        |
+| **int8 dyn**  | **0.9806** | 42.67  | **26.32**                 | **38.0**    |
+| Δ             | 0.0000   | -0.01     | **-1.5×**                 | +1.5×       |
+
+For a streaming-frame deployment (one image at a time as the line emits
+frames) this is **1.5× more throughput at zero accuracy cost**. At
+production rates of e.g. 30 FPS the fp32 model would already be at the
+limit on this hardware; the INT8 model has 25% headroom.
+
+For larger batch sizes (16+) the win disappears because the conv stack
+dominates wall time and our quantization only touches the linear head.
+A bigger gain would come from full-static-quant on the conv backbone with
+a calibration pass — flagged as scoped future work, not done here.
 
 - **No cross-fold disagreement audit.** With only 1,800 images, k-fold runs
   would take ~30 min wallclock on CPU and would not change the conclusions

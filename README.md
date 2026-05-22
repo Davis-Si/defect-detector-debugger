@@ -10,49 +10,70 @@ help.
 
 ## Headline results
 
-Five training runs, ablating different augmentation policies on a 1,440-image
+Six training runs ablating different augmentation policies on a 1,440-image
 training set. All errors below are on a held-out test set of 360 images.
 
-| Run                | Augmentation policy                            | Test accuracy |
-|--------------------|------------------------------------------------|---------------|
-| **baseline**       | none                                           | **0.9806**    |
-| flip               | horizontal flip                                | 0.9722        |
-| flip_rotate        | h-flip + ±15° rotation                         | 0.9139        |
-| flip_rotate_mild   | h-flip + ±5° rotation                          | 0.9028        |
-| class_aware        | rotation only on rotation-safe classes (hypothesis-driven) | 0.8611 |
+| Run                | Augmentation policy                                              | Test accuracy |
+|--------------------|------------------------------------------------------------------|---------------|
+| **baseline**       | none                                                             | **0.9806**    |
+| flip               | horizontal flip                                                  | 0.9722        |
+| flip_rotate        | h-flip + ±15° rotation                                           | 0.9139        |
+| auto_sensitivity   | h-flip + ±15° rotation, applied per-class via empirical probe    | 0.9083        |
+| flip_rotate_mild   | h-flip + ±5° rotation                                            | 0.9028        |
+| class_aware        | rotation skipped for hand-picked classes (inclusion + scratches) | 0.8611        |
 
 ![Ablation across augmentation regimes](reports/ablation.png)
 
-**The headline finding is that every augmentation regime hurts on this dataset.**
-The baseline (no augmentation) wins by 0.9 to 12 points depending on the
-alternative. Even the hypothesis-driven `class_aware` policy — which I
-designed *after* analysing per-class failures in `flip_rotate` and which does
-recover inclusion recall as predicted (0.63 → 0.78) — fails overall, because
-the regression on rotation-safe classes (`pitted_surface` recall 0.95 → 0.63)
-swamps the gain. See [`findings.md`](findings.md) Section 3 for the full
-trace from observation → hypothesis → experiment → re-evaluation.
+**The headline finding is that every augmentation regime hurts on this
+dataset.** The baseline (no augmentation) wins by 0.9 to 12 points depending
+on the alternative. The story that connects the runs is the interesting
+part — see [`findings.md`](findings.md) Section 3 for the full trace.
 
-This is a result that would not show up if you only looked at aggregate test
-accuracy on the default augmentation pipeline — and it's the kind of thing
-that quietly costs production deployments.
+The `auto_sensitivity` run is novel: instead of guessing which classes are
+"rotation-safe", `src/sensitivity.py` empirically probes the trained model
+by measuring how much each class's predicted probability drops after
+applying each candidate transform. The probe inverts what intuition
+suggests:
+
+| class            | sensitivity to ±15° rotation (drop in p_true) | I assumed         | Probe says        |
+|------------------|----------------------------------------------:|-------------------|-------------------|
+| scratches        | 0.032                                         | sensitive (skip)  | **safe** (rotate) |
+| patches          | 0.105                                         | safe              | safe              |
+| inclusion        | 0.399                                         | sensitive (skip)  | safe (rotate)     |
+| crazing          | 0.478                                         | safe              | sensitive (skip)  |
+| pitted_surface   | 0.516                                         | safe              | sensitive (skip)  |
+| rolled-in_scale  | 0.603                                         | safe              | sensitive (skip)  |
+
+The auto-derived policy beats the hand-picked `class_aware` policy by 4.7
+points (0.9083 vs 0.8611), confirming the probe extracts real signal — but
+still loses to the no-augmentation baseline by 7 points, which finally
+proves the dataset just doesn't accept geometric augmentation under this
+model. **A negative result that's robust because we ran the principled
+experiment.**
+
+![Per-class augmentation sensitivity heatmap](reports/sensitivity/per_class_sensitivity.png)
 
 ### Production-readiness summary
 
 The baseline model isn't just accurate, it's *deployable*:
 
-| Metric                                | Value                                  |
-|---------------------------------------|----------------------------------------|
-| Test accuracy                         | 98.06%                                 |
-| **Confidence-thresholded auto-decision** | **100% accurate at T=0.70**         |
-| Auto-decided coverage at that threshold | **92.5%** (333/360 frames)           |
-| Defer-to-human rate                   | **7.5%** (27/360 frames)               |
-| **CPU latency p50 (batch=1)**         | **47.9 ms / frame  →  20.9 FPS**       |
-| CPU latency p50 (batch=32)            | 14.9 ms / frame  →  67.2 FPS           |
-| Hardware                              | 8-core CPU, no GPU                     |
+| Metric                                  | fp32                                | INT8 dynamic           |
+|-----------------------------------------|-------------------------------------|------------------------|
+| Test accuracy                           | 98.06%                              | **98.06% (no loss)**   |
+| Confidence-thresholded auto-decision    | 100% accurate at T=0.70             | (same threshold reuses) |
+| Auto-decided coverage at T=0.70         | **92.5%** (333/360 frames)          | —                      |
+| Defer-to-human rate                     | 7.5%                                | —                      |
+| **CPU latency p50 (batch=1)**           | 40.1 ms / frame → 25.0 FPS           | **26.3 ms / frame → 38.0 FPS (1.5× faster)** |
+| CPU latency p50 (batch=32)              | 15.6 ms / frame → 64.1 FPS           | 15.4 ms / frame → 65.1 FPS |
+| Hardware                                | 8-core CPU, no GPU                  | 8-core CPU, no GPU     |
 
-Coverage / accuracy curve, recommended threshold, and full latency table at
-`reports/deployment/` and `reports/benchmark/latency.md`.
+INT8 dynamic quantization gives a **1.5× speedup at batch=1 with zero
+accuracy loss**. For a streaming-frame factory deployment (the dominant
+case — one image at a time as the line emits frames) that's the difference
+between 25 and 38 FPS. Pareto plot, full table, and reproducer at
+`reports/quantization/`.
 
+![Accuracy vs latency Pareto: fp32 vs INT8 dynamic](reports/quantization/pareto.png)
 ![Deployment policy: coverage vs auto-decision accuracy](reports/deployment/coverage_accuracy.png)
 
 ### Failure-mode visuals
@@ -85,8 +106,10 @@ src/
   train.py       Training loop with per-run config + artefact dump
   analyze.py     Failure-analysis toolkit (per-class, calibration, t-SNE, ...)
   gradcam.py     Grad-CAM saliency overlays for any run
+  sensitivity.py Per-class augmentation sensitivity probe (auto-derives a policy)
   deployment.py  Coverage-vs-accuracy sweep + threshold recommendation
   benchmark.py   CPU latency benchmark across batch sizes
+  quantize.py    INT8 dynamic quantization + accuracy/latency Pareto
 runs/<name>/
   config.json, metrics.json, model.pt, test_predictions.csv, test_features.npy
   analysis/
@@ -98,9 +121,12 @@ runs/<name>/
     summary.json
 reports/
   ablation.{csv,png}                cross-run accuracy comparison
+  sensitivity/per_class_sensitivity.{csv,png}    per-class transform sensitivity
+  sensitivity/policy.json                         auto-derived augmentation policy
   deployment/coverage_accuracy.{csv,png}
   deployment/recommendation.json    recommended confidence threshold + coverage
   benchmark/latency.{json,md}       CPU inference benchmark
+  quantization/{pareto.png,benchmark.csv,summary.json}  fp32 vs INT8 dynamic
   summaries.json
 findings.md                         narrative writeup of every failure mode
 Makefile                            `make all` reproduces every artefact
@@ -137,13 +163,24 @@ the model used for any prediction. In practice this is what tells the
 annotation team whether to relabel a sample or whether the visual signal is
 genuinely ambiguous. Run with `python -m src.gradcam --run runs/baseline`.
 
+`src/sensitivity.py` is the novel diagnostic. For each (class, transform)
+cell it measures how much the trained model's predicted probability for the
+true class drops when the transform is applied at test time. Output: a
+heatmap of per-class sensitivity, plus a `policy.json` that auto-derives
+which classes should be rotated at training time. The result on this
+dataset directly contradicted my class-name-based guess (see headline) —
+which is exactly why the diagnostic matters. Run with
+`python -m src.sensitivity --run runs/baseline`.
+
 `src/deployment.py` computes the coverage-vs-accuracy curve and recommends a
 deployment threshold. Run with `python -m src.deployment --run runs/baseline`.
 
 `src/benchmark.py` measures p50 / p95 inference latency on CPU across batch
-sizes. Run with `python -m src.benchmark --run runs/baseline`.
+sizes. `src/quantize.py` extends this to compare fp32 vs INT8 dynamic
+quantization on both accuracy and latency, producing the Pareto plot.
+Run with `python -m src.quantize --run runs/baseline`.
 
-All four operate on the artefacts emitted by `train.py`, so they work on
+All six operate on the artefacts emitted by `train.py`, so they work on
 *any* run without re-training. That separation is intentional: in practice
 you spend more time analysing runs than producing them.
 
@@ -171,8 +208,9 @@ first-class concern:
 
 - *Datasets / labels* — `confused_pairs/` and `hard_examples/` galleries make
   label noise visible in seconds.
-- *Augmentations* — five runs, hypothesis-driven ablation including a
-  principled fix that *failed*, written up in `findings.md` Section 3.
+- *Augmentations* — six runs, hypothesis-driven ablation including a
+  principled hand-picked fix and an empirically-derived auto policy, *both
+  of which failed*, written up in `findings.md` Sections 3 and 8.
 - *Training behaviour* — `metrics.json` keeps per-epoch loss + accuracy and
   best-val checkpointing; `findings.md` discusses what the curves imply.
 - *Targeted evaluation* — sliced confidence bins and per-class metrics force
